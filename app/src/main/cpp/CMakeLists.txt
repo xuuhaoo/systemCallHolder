@@ -8,6 +8,11 @@ cmake_minimum_required(VERSION 3.10.2)
 # Declares and names the project.
 
 project("systemcall")
+#if(${ANDROID_ABI} STREQUAL "x86")
+#    add_definitions(-D__i386__)
+#else()
+#    add_definitions(-D__arm__)
+#endif()
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.

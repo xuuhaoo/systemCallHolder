@@ -1,4 +1,3 @@
-#include <sys/ptrace.h>
 #include "native-lib.h"
 
 
@@ -32,91 +31,65 @@ JNIEXPORT jstring JNICALL Java_com_squareup_systemcall_MainActivity_readFileSysC
     return env->NewStringUTF(str.c_str());
 }
 
-long getSysCallNo(int pid) {
-    long scno = 0;
-    struct pt_regs regs;
-    ptrace(PTRACE_GETREGS, pid, NULL, &regs);
-    scno = ptrace(PTRACE_PEEKTEXT, pid, (void *) (regs.ARM_pc - 4), NULL);
-    if (scno == 0)
-        return 0;
-
-    if (scno == 0xef000000) {
-        scno = regs.ARM_r7;
-    } else {
-        if ((scno & 0x0ff00000) != 0x0f900000) {
-            return -1;
-        }
-
-        scno &= 0x000fffff;
-    }
-    return scno;
+long GetSysCallNo(pid_t pid) {
+    struct my_pt_regs regs;
+    ptrace(MYPTRACE_GETREGS, pid, NULL, &regs);
+    long syscall_no = regs.SYSCALL_NR_REG; // on ARM, syscall no. is in r8 register
+    LogI("System call No.: %ld ", syscall_no);
+    return syscall_no;
 }
 
-int long_size = sizeof(long);
-
-void getdata(pid_t pid, long addr, char *str, int len) {
-    char *laddr;
-    int i, j;
-    union u {
-        long val;
-        char chars[sizeof(long)];
-    } data;
-    i = 0;
-    j = len / long_size;
-    laddr = str;
-    while (i < j) {
-        data.val = ptrace(PTRACE_PEEKDATA, pid, addr + i * 4, NULL);
-        memcpy(laddr, data.chars, long_size);
-        ++i;
-        laddr += long_size;
-    }
-    j = len % long_size;
-    if (j != 0) {
-        data.val = ptrace(PTRACE_PEEKDATA, pid, addr + i * 4, NULL);
-        memcpy(laddr, data.chars, j);
-    }
-    str[len] = '\0';
+long GetOpenAtFileNameAddr(pid_t pid) {
+    struct my_pt_regs regs;
+    ptrace(MYPTRACE_GETREGS, pid, NULL, &regs);
+    long param = regs.SYSCALL_OPENAT_FILENAME;
+//    long param = ptrace(PTRACE_PEEKUSER, pid, regs.SYSCALL_OPENAT_FILENAME, NULL);
+    LogI("GetData : %ld", param);
+    return param;
 }
 
 void childProcess() {
     int status;
     long no;
-    long eax;
-    long params[3];
-    struct pt_regs regs;
-
+    long addr;
+    ptrace(PTRACE_ATTACH, getppid(), NULL, NULL);
     waitpid(getppid(), &status, 0);
-    // 开始跟踪
-    ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     while (true) {
-        // 等待主进程的系统调用
-        waitpid(getppid(), &status, 0);
-
-        if (WIFEXITED(status)) {
-            break;
-        }
-
-        // 获取当前寄存器的值
-        ptrace(PTRACE_GETREGS, getppid(), NULL, &regs);
-
-        // 获取系统调用号
-        no = getSysCallNo(getppid());
-
-        // 如果是svc调用，获取入参和返回值
-        if (no == __NR_openat) {
-            params[0] = regs.ARM_r0;
-            params[1] = regs.ARM_r1;
-            params[2] = regs.ARM_r2;
-
-            eax = ptrace(PTRACE_PEEKUSER, getppid(), 8 * PT_ORIG_RAX, NULL);
-
-            printf("syscall: %ld, params: [%ld, %ld, %ld], return: %ld\n",
-                   no, params[0], params[1], params[2], eax);
-        }
-
         // 继续跟踪
         ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
+        // 等待主进程的系统调用
+        waitpid(getppid(), &status, 0);
+        LogI("waitpid pass in while openat:%d", __NR_openat);
+
+        if (WIFEXITED(status)) {
+            LogI("wtatus exited:%d", status);
+            break;
+        }
+        // 获取系统调用号
+        no = GetSysCallNo(getppid());
+        // 如果是svc调用，获取入参和返回值
+        if (no == __NR_openat) {
+            addr = GetOpenAtFileNameAddr(getppid());
+            // 读取字符串
+            int i = 0;
+            char * buf = "";
+            while (i < 4096) {
+                long val = ptrace(PTRACE_PEEKTEXT, getppid(), (void *) addr, NULL);
+                addr += sizeof(long);
+                memcpy(buf + i, &val, sizeof(long));
+                if (memchr(&val, 0, sizeof(val))) break;
+                i += sizeof(long);
+            }
+
+//            eax = ptrace(PTRACE_PEEKUSER, getppid(), 8 * PT_ORIG_RAX, NULL);
+//
+//            printf("syscall: %ld, params: [%ld, %ld, %ld], return: %ld\n",
+//                   no, params[0], params[1], params[2], eax);
+            LogI("openat syscall: %ld data:%s", no, buf);
+        }
     }
+    ptrace(PTRACE_DETACH, getppid(), NULL, NULL);
+    LogI("detach...");
 }
 
 
