@@ -32,11 +32,6 @@ class MainActivity : AppCompatActivity() {
     }
     ptraceViewSvcCall()
     binding.btn.setOnClickListener {
-      val file = File(getExternalFilesDir(null), "svcTest").also {
-        it.delete()
-        it.createNewFile()
-        it.writeText("This is test svc file content")
-      }
       binding.sampleText.text = readFileSysCall(file.path)
     }
   }

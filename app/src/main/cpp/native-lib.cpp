@@ -20,7 +20,9 @@ char *jstringToChar(JNIEnv *env, jstring jstr) {
 
 extern "C"
 JNIEXPORT jstring JNICALL Java_com_squareup_systemcall_MainActivity_readFileSysCall(JNIEnv *env, jobject /* this */, jstring filePath) {
-    long fd = syscall(__NR_openat, AT_FDCWD, jstringToChar(env, filePath), O_RDONLY);
+    char *path = jstringToChar(env, filePath);
+    LogI("path addr:%p", path);
+    long fd = syscall(__NR_openat, AT_FDCWD, path, O_RDONLY);
     char buf[100];
     std::string str;
     ssize_t count;
@@ -33,18 +35,15 @@ JNIEXPORT jstring JNICALL Java_com_squareup_systemcall_MainActivity_readFileSysC
 
 long GetSysCallNo(pid_t pid) {
     struct my_pt_regs regs;
-    ptrace(MYPTRACE_GETREGS, pid, NULL, &regs);
-    long syscall_no = regs.SYSCALL_NR_REG; // on ARM, syscall no. is in r8 register
-    LogI("System call No.: %ld ", syscall_no);
+    ptrace(COMPAT_PTRACE_GETREGS, pid, NULL, &regs);
+    long syscall_no = regs.SYSCALL_NR_REG;
     return syscall_no;
 }
 
 long GetOpenAtFileNameAddr(pid_t pid) {
     struct my_pt_regs regs;
-    ptrace(MYPTRACE_GETREGS, pid, NULL, &regs);
-    long param = regs.SYSCALL_OPENAT_FILENAME;
-//    long param = ptrace(PTRACE_PEEKUSER, pid, regs.SYSCALL_OPENAT_FILENAME, NULL);
-    LogI("GetData : %ld", param);
+    ptrace(COMPAT_PTRACE_GETREGS, pid, NULL, &regs);
+    long param = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct my_pt_regs, SYSCALL_OPENAT_FILENAME) , NULL);
     return param;
 }
 
@@ -53,13 +52,10 @@ void childProcess() {
     long no;
     long addr;
     ptrace(PTRACE_ATTACH, getppid(), NULL, NULL);
-    waitpid(getppid(), &status, 0);
+    ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     while (true) {
-        // 继续跟踪
-        ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
         // 等待主进程的系统调用
-        waitpid(getppid(), &status, 0);
-        LogI("waitpid pass in while openat:%d", __NR_openat);
+        waitpid(getppid(), &status, WUNTRACED);
 
         if (WIFEXITED(status)) {
             LogI("wtatus exited:%d", status);
@@ -69,24 +65,28 @@ void childProcess() {
         no = GetSysCallNo(getppid());
         // 如果是svc调用，获取入参和返回值
         if (no == __NR_openat) {
+            LogI("syscall: %ld", no);
             addr = GetOpenAtFileNameAddr(getppid());
+            LogI("fileNameAddr: %p ,%ld", (void *) addr, addr);
+
             // 读取字符串
             int i = 0;
-            char * buf = "";
-            while (i < 4096) {
+            char buf[4096];
+            while (i < 4096) {//最多读取这么多
                 long val = ptrace(PTRACE_PEEKTEXT, getppid(), (void *) addr, NULL);
+                if (val == -1) {
+                    // 出现错误
+                    LogI("openat -1 syscall: %ld data:%s", no, buf);
+                    break;
+                }
                 addr += sizeof(long);
                 memcpy(buf + i, &val, sizeof(long));
                 if (memchr(&val, 0, sizeof(val))) break;
                 i += sizeof(long);
             }
-
-//            eax = ptrace(PTRACE_PEEKUSER, getppid(), 8 * PT_ORIG_RAX, NULL);
-//
-//            printf("syscall: %ld, params: [%ld, %ld, %ld], return: %ld\n",
-//                   no, params[0], params[1], params[2], eax);
             LogI("openat syscall: %ld data:%s", no, buf);
         }
+        ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     }
     ptrace(PTRACE_DETACH, getppid(), NULL, NULL);
     LogI("detach...");
@@ -96,7 +96,6 @@ void childProcess() {
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_squareup_systemcall_MainActivity_ptraceViewSvcCall(JNIEnv *env, jobject thiz) {
-    prctl(PR_SET_DUMPABLE, 1, 0, 0, 0);
     pid_t childId = fork();
     if (childId == 0) {//子进程
         childProcess();
