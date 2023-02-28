@@ -18,21 +18,6 @@ char *jstringToChar(JNIEnv *env, jstring jstr) {
     return rtn;
 }
 
-extern "C"
-JNIEXPORT jstring JNICALL Java_com_squareup_systemcall_MainActivity_readFileSysCall(JNIEnv *env, jobject /* this */, jstring filePath) {
-    char *path = jstringToChar(env, filePath);
-    LogI("path addr:%p", path);
-    long fd = syscall(__NR_openat, AT_FDCWD, path, O_RDONLY);
-    char buf[100];
-    std::string str;
-    ssize_t count;
-    while ((count = syscall(__NR_read, fd, buf, sizeof(buf))) > 0) {
-        str.append(buf, count);
-    }
-    syscall(__NR_close, fd);
-    return env->NewStringUTF(str.c_str());
-}
-
 long GetSysCallNo(pid_t pid) {
     struct my_pt_regs regs;
     ptrace(COMPAT_PTRACE_GETREGS, pid, NULL, &regs);
@@ -43,7 +28,7 @@ long GetSysCallNo(pid_t pid) {
 long GetOpenAtFileNameAddr(pid_t pid) {
     struct my_pt_regs regs;
     ptrace(COMPAT_PTRACE_GETREGS, pid, NULL, &regs);
-    long param = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct my_pt_regs, SYSCALL_OPENAT_FILENAME) , NULL);
+    long param = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct my_pt_regs, SYSCALL_OPENAT_FILENAME), NULL);
     return param;
 }
 
@@ -94,8 +79,24 @@ void childProcess() {
 
 
 extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_squareup_systemcall_Native_readFileSysCall(JNIEnv *env, jobject thiz, jstring filePath) {
+    char *path = jstringToChar(env, filePath);
+    LogI("path addr:%p", path);
+    long fd = syscall(__NR_openat, AT_FDCWD, path, O_RDONLY);
+    char buf[100];
+    std::string str;
+    ssize_t count;
+    while ((count = syscall(__NR_read, fd, buf, sizeof(buf))) > 0) {
+        str.append(buf, count);
+    }
+    syscall(__NR_close, fd);
+    return env->NewStringUTF(str.c_str());
+
+}
+extern "C"
 JNIEXPORT void JNICALL
-Java_com_squareup_systemcall_MainActivity_ptraceViewSvcCall(JNIEnv *env, jobject thiz) {
+Java_com_squareup_systemcall_Native_ptraceViewSvcCall(JNIEnv *env, jobject thiz) {
     pid_t childId = fork();
     if (childId == 0) {//子进程
         childProcess();
