@@ -30,8 +30,8 @@ class MainActivity : AppCompatActivity() {
   override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     binding.btn.setOnClickListener {
-      binding.sampleText.text = Native.readFileSysCall(FileHelper.file.path)
-      Toast.makeText(this@MainActivity, File(FileHelper.file.path).readText(), Toast.LENGTH_LONG).show()
+      binding.sampleText.text = Native.readFileSysCall(FileHelper.file.path).trim()
+      Toast.makeText(this@MainActivity, File(FileHelper.file.path).readText().trim(), Toast.LENGTH_LONG).show()
     }
   }
 }
