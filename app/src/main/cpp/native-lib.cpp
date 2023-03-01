@@ -38,9 +38,6 @@ void childProcess() {
     long addr;
     LogI("childProcess prepare attach father process");
     ptrace(PTRACE_ATTACH, getppid(), NULL, NULL);
-    waitpid(getppid(), &status, 0);
-    LogI("childProcess have attached to father process");
-    ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     while (true) {
         // 等待主进程的系统调用
         waitpid(getppid(), &status, 0);
@@ -50,7 +47,7 @@ void childProcess() {
         }
         // 获取系统调用号
         no = GetSysCallNo(getppid());
-//        LogI("childProcess wait status sig %ld",no);
+//        LogI("childProcess sys call no. %ld", no);
         // 如果是svc调用，获取入参和返回值
         if (no == __NR_openat) {
             LogI("childProcess found syscall: %ld", no);
@@ -72,10 +69,6 @@ void childProcess() {
                 i += sizeof(long);
             }
             LogI("childProcess read openat data:%s", buf);
-
-        } else {
-            LogI("childProcess found next");
-            ptrace(PTRACE_CONT, getppid(), 0, 0);
         }
         ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     }
@@ -107,8 +100,5 @@ Java_com_squareup_systemcall_Native_ptraceViewSvcCall(JNIEnv *env, jobject thiz)
     if (childId == 0) {//子进程
         LogI("child process is on");
         childProcess();
-    } else {//父进程
-        LogI("father process waiting for %d attach ", childId);
-        ptrace(PTRACE_TRACEME, 0, NULL, NULL);
     }
 }
