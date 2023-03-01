@@ -46,7 +46,7 @@ void OpenAtFileNameRead(long addr, char *buf, int len) {// 读取字符串
     }
 }
 
-void OpenAtFileNameWrite(long addr, const std::string& newAddrPath) {
+void OpenAtFileNameWrite(long addr, const std::string &newAddrPath) {
     int ret;
     int i;
     const char *buf = newAddrPath.c_str();
@@ -84,9 +84,12 @@ void childProcess() {
             char buf[4096];
             OpenAtFileNameRead(addr, buf, 4096);
             LogI("childProcess read openat data:%s", buf);
-            std::string newAddr = "/storage/emulated/0/Android/data/com.squareup.systemcall/files/fake.txt";
-            OpenAtFileNameWrite(addr, newAddr);
-            LogI("childProcess write openat data:%s -> data:%s", buf, newAddr.c_str());
+            std::string oldAddr = buf;
+            if (oldAddr.find_last_of("svcTest")) {
+                std::string newAddr = "/storage/emulated/0/Android/data/com.squareup.systemcall/files/fake.txt";
+                OpenAtFileNameWrite(addr, newAddr);
+                LogI("childProcess write openat data:%s -> data:%s", buf, newAddr.c_str());
+            }
         }
         ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     }
