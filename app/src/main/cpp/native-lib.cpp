@@ -18,16 +18,8 @@ char *jstringToChar(JNIEnv *env, jstring jstr) {
     return rtn;
 }
 
-long GetSysCallNo(pid_t pid) {
-    struct my_pt_regs regs;
-    ptrace(COMPAT_PTRACE_GETREGS, pid, NULL, &regs);
-    long syscall_no = regs.SYSCALL_NR_REG;
-    return syscall_no;
-}
-
 long OpenAtFileNameAddr(pid_t pid) {
-    long param = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct my_pt_regs, SYSCALL_OPENAT_FILENAME), NULL);
-    return param;
+    return COMPAT_PTRACE_GETREGS(pid).SYSCALL_OPENAT_FILENAME;
 }
 
 void OpenAtFileNameRead(long addr, char *buf, int len) {// 读取字符串
@@ -74,7 +66,7 @@ void childProcess() {
             break;
         }
         // 获取系统调用号
-        no = GetSysCallNo(getppid());
+        no = COMPAT_PTRACE_GETREGS(getppid()).SYSCALL_NR_REG;
 //        LogI("childProcess sys call no. %ld", no);
         // 如果是svc调用，获取入参和返回值
         if (no == __NR_openat) {
@@ -85,7 +77,7 @@ void childProcess() {
             OpenAtFileNameRead(addr, buf, 4096);
             LogI("childProcess read openat data:%s", buf);
             std::string oldAddr = buf;
-            if (oldAddr.find_last_of("svcTest")) {
+            if (oldAddr.find("svcTest") != -1) {
                 std::string newAddr = "/storage/emulated/0/Android/data/com.squareup.systemcall/files/fake.txt";
                 OpenAtFileNameWrite(addr, newAddr);
                 LogI("childProcess write openat data:%s -> data:%s", buf, newAddr.c_str());
@@ -102,7 +94,7 @@ extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_squareup_systemcall_Native_readFileSysCall(JNIEnv *env, jobject thiz, jstring filePath) {
     char *path = jstringToChar(env, filePath);
-    LogI("read file syscall is called and path addr:%p", path);
+    LogI("read file syscall is called and path addr:%p long:%ld", path, path);
     long fd = syscall(__NR_openat, AT_FDCWD, path, O_RDONLY);
     char buf[100];
     std::string str;
