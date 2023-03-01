@@ -25,11 +25,39 @@ long GetSysCallNo(pid_t pid) {
     return syscall_no;
 }
 
-long GetOpenAtFileNameAddr(pid_t pid) {
-    struct my_pt_regs regs;
-    ptrace(COMPAT_PTRACE_GETREGS, pid, NULL, &regs);
+long OpenAtFileNameAddr(pid_t pid) {
     long param = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct my_pt_regs, SYSCALL_OPENAT_FILENAME), NULL);
     return param;
+}
+
+void OpenAtFileNameRead(long addr, char *buf, int len) {// 读取字符串
+    int i = 0;
+    while (i < len) {//最多读取这么多
+        long val = ptrace(PTRACE_PEEKTEXT, getppid(), (void *) addr, NULL);
+        if (val == -1) {
+            // 出现错误
+            LogI("childProcess read openat err:-1 data:%s", buf);
+            break;
+        }
+        addr += sizeof(long);
+        memcpy(buf + i, &val, sizeof(long));
+        if (memchr(&val, 0, sizeof(val))) break;
+        i += sizeof(long);
+    }
+}
+
+void OpenAtFileNameWrite(long addr, const std::string& newAddrPath) {
+    int ret;
+    int i;
+    const char *buf = newAddrPath.c_str();
+    for (i = 0; i < strlen(buf); i += sizeof(long)) {
+        long val = *((long *) (buf + i));
+        ret = ptrace(PTRACE_POKETEXT, getppid(), (void *) (addr + i), (void *) val);
+        if (ret == -1) {
+            LogI("childProcess write openat err:-1 data:%s", buf);
+            break;
+        }
+    }
 }
 
 void childProcess() {
@@ -40,7 +68,7 @@ void childProcess() {
     ptrace(PTRACE_ATTACH, getppid(), NULL, NULL);
     while (true) {
         // 等待主进程的系统调用
-        waitpid(getppid(), &status, 0);
+        waitpid(getppid(), &status, WUNTRACED);
         if (WIFEXITED(status)) {
             LogI("childProcess exited:%d", status);
             break;
@@ -51,24 +79,14 @@ void childProcess() {
         // 如果是svc调用，获取入参和返回值
         if (no == __NR_openat) {
             LogI("childProcess found syscall: %ld", no);
-            addr = GetOpenAtFileNameAddr(getppid());
+            addr = OpenAtFileNameAddr(getppid());
             LogI("childProcess get file name addr:%p ,addr in long:%ld", (void *) addr, addr);
-            // 读取字符串
-            int i = 0;
             char buf[4096];
-            while (i < 4096) {//最多读取这么多
-                long val = ptrace(PTRACE_PEEKTEXT, getppid(), (void *) addr, NULL);
-                if (val == -1) {
-                    // 出现错误
-                    LogI("childProcess read openat err:-1 data:%s", buf);
-                    break;
-                }
-                addr += sizeof(long);
-                memcpy(buf + i, &val, sizeof(long));
-                if (memchr(&val, 0, sizeof(val))) break;
-                i += sizeof(long);
-            }
+            OpenAtFileNameRead(addr, buf, 4096);
             LogI("childProcess read openat data:%s", buf);
+            std::string newAddr = "/storage/emulated/0/Android/data/com.squareup.systemcall/files/fake.txt";
+            OpenAtFileNameWrite(addr, newAddr);
+            LogI("childProcess write openat data:%s -> data:%s", buf, newAddr.c_str());
         }
         ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
     }
