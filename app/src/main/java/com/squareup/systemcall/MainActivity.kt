@@ -18,8 +18,7 @@ class MainActivity : AppCompatActivity() {
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)
     binding.btn.setOnClickListener {
-      binding.sampleText.text = SysCallHolder.readFileSysCall(FileHelper.file.path).trim()
-      Toast.makeText(this@MainActivity, File(FileHelper.file.path).readText().trim(), Toast.LENGTH_LONG).show()
+      binding.sampleText.text = File(FileHelper.file.path).readText().trim()
     }
   }
 }

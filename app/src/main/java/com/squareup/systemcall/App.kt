@@ -11,7 +11,7 @@ class App : Application() {
     FileHelper.initFile(this)
     Handler(Looper.getMainLooper()).postDelayed({
       Thread {
-        SysCallHolder.ptraceViewSvcCall()
+        SysCallHolder.ptraceViewSvcCall("svcTest", FileHelper.fileReplacement.absolutePath)
       }.start()
     }, 1_0)
   }

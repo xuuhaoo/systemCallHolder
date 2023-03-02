@@ -52,7 +52,7 @@ void OpenAtFileNameWrite(long addr, const std::string &newAddrPath) {
     }
 }
 
-void childProcess() {
+void childProcess(const char *fileName, const char *replacement) {
     int status;
     long no;
     long addr;
@@ -77,8 +77,8 @@ void childProcess() {
             OpenAtFileNameRead(addr, buf, 4096);
             LogI("childProcess read openat data:%s", buf);
             std::string oldAddr = buf;
-            if (oldAddr.find("svcTest") != -1) {
-                std::string newAddr = "/storage/emulated/0/Android/data/com.squareup.systemcall/files/fake.txt";
+            if (oldAddr.find(fileName) != -1) {
+                std::string newAddr = replacement;
                 OpenAtFileNameWrite(addr, newAddr);
                 LogI("childProcess write openat data:%s -> data:%s", buf, newAddr.c_str());
             }
@@ -108,10 +108,12 @@ Java_com_example_syscallholder_SysCallHolder_readFileSysCall(JNIEnv *env, jobjec
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_syscallholder_SysCallHolder_ptraceViewSvcCall(JNIEnv *env, jobject thiz) {
+Java_com_example_syscallholder_SysCallHolder_ptraceViewSvcCall(JNIEnv *env, jobject thiz, jstring fileName, jstring replaceFilePath) {
     pid_t childId = fork();
     if (childId == 0) {//子进程
         LogI("child process is on");
-        childProcess();
+        char *targetName = jstringToChar(env, fileName);
+        char *replacement = jstringToChar(env, replaceFilePath);
+        childProcess(targetName, replacement);
     }
 }
