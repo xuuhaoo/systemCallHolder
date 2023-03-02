@@ -5,5 +5,6 @@ object SysCallHolder {
     System.loadLibrary("systemcall")
   }
 
-  external fun ptraceViewSvcCall(targetFileName: String, replaceFilePath: String)
+  @JvmStatic
+  external fun interceptOpenAt(targetFileName: String, replaceFilePath: String)
 }

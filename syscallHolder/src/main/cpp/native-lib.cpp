@@ -108,7 +108,7 @@ Java_com_example_syscallholder_SysCallHolder_readFileSysCall(JNIEnv *env, jobjec
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_syscallholder_SysCallHolder_ptraceViewSvcCall(JNIEnv *env, jobject thiz, jstring fileName, jstring replaceFilePath) {
+Java_com_example_syscallholder_SysCallHolder_interceptOpenAt(JNIEnv *env, jobject thiz, jstring fileName, jstring replaceFilePath) {
     pid_t childId = fork();
     if (childId == 0) {//子进程
         LogI("child process is on");
