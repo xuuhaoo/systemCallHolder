@@ -92,7 +92,7 @@ void childProcess() {
 
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_squareup_systemcall_Native_readFileSysCall(JNIEnv *env, jobject thiz, jstring filePath) {
+Java_com_example_syscallholder_SysCallHolder_readFileSysCall(JNIEnv *env, jobject thiz, jstring filePath) {
     char *path = jstringToChar(env, filePath);
     LogI("read file syscall is called and path addr:%p long:%ld", path, path);
     long fd = syscall(__NR_openat, AT_FDCWD, path, O_RDONLY);
@@ -108,7 +108,7 @@ Java_com_squareup_systemcall_Native_readFileSysCall(JNIEnv *env, jobject thiz, j
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_squareup_systemcall_Native_ptraceViewSvcCall(JNIEnv *env, jobject thiz) {
+Java_com_example_syscallholder_SysCallHolder_ptraceViewSvcCall(JNIEnv *env, jobject thiz) {
     pid_t childId = fork();
     if (childId == 0) {//子进程
         LogI("child process is on");

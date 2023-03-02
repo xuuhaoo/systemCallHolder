@@ -1,6 +1,6 @@
-package com.squareup.systemcall
+package com.example.syscallholder
 
-object Native {
+object SysCallHolder {
     init {
         System.loadLibrary("systemcall")
     }
