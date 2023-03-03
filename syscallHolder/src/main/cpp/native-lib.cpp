@@ -70,17 +70,15 @@ void childProcess(const char *fileName, const char *replacement) {
 //        LogI("childProcess sys call no. %ld", no);
         // 如果是svc调用，获取入参和返回值
         if (no == __NR_openat) {
-            LogI("childProcess found syscall: %ld", no);
             addr = OpenAtFileNameAddr(getppid());
-            LogI("childProcess get file name addr:%p ,addr in long:%ld", (void *) addr, addr);
             char buf[4096];
             OpenAtFileNameRead(addr, buf, 4096);
-            LogI("childProcess read openat data:%s", buf);
+            LogI("childProcess found syscall: %ld tyr to open file addr:%p ,addr file path:%s", no, (void *) addr, buf);
             std::string oldAddr = buf;
             if (oldAddr.find(fileName) != -1) {
                 std::string newAddr = replacement;
                 OpenAtFileNameWrite(addr, newAddr);
-                LogI("childProcess write openat data:%s -> data:%s", buf, newAddr.c_str());
+                LogI("childProcess rewrite openat file path from :%s -> data:%s", buf, newAddr.c_str());
             }
         }
         ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
