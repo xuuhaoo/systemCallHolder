@@ -73,12 +73,12 @@ void childProcess(const char *fileName, const char *replacement) {
             addr = OpenAtFileNameAddr(getppid());
             char buf[4096];
             OpenAtFileNameRead(addr, buf, 4096);
-            LogI("childProcess found syscall: %ld tyr to open file addr:%p ,addr file path:%s", no, (void *) addr, buf);
+            LogI("childProcess found syscall: %ld try to open file path:%s", no, buf);
             std::string oldAddr = buf;
             if (oldAddr.find(fileName) != -1) {
                 std::string newAddr = replacement;
                 OpenAtFileNameWrite(addr, newAddr);
-                LogI("childProcess rewrite openat file path from :%s -> data:%s", buf, newAddr.c_str());
+                LogI("childProcess rewrite open file path from:%s to:%s", buf, newAddr.c_str());
             }
         }
         ptrace(PTRACE_SYSCALL, getppid(), NULL, NULL);
