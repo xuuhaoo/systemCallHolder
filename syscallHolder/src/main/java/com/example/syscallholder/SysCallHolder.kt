@@ -6,5 +6,6 @@ object SysCallHolder {
   }
 
   @JvmStatic
-  external fun interceptOpenAt(targetFileName: String, replaceFilePath: String)
+  @JvmOverloads
+  external fun interceptOpenAt(targetFileName: String = "", replaceFilePath: String = "")
 }
