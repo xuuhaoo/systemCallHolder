@@ -6,9 +6,9 @@ plugins {
 android {
     namespace 'com.example.syscallholder'
     compileSdk 33
-    buildFeatures {
-        prefab true
-    }
+//    buildFeatures {
+//        prefab true
+//    }
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -26,9 +26,9 @@ android {
 //            abiFilters  'armeabi'
         }
     }
-    packagingOptions {
-        pickFirst '**/libbytehook.so'
-    }
+//    packagingOptions {
+//        pickFirst '**/libbytehook.so'
+//    }
     buildTypes {
         release {
             minifyEnabled false
@@ -53,5 +53,4 @@ android {
 dependencies {
     implementation 'androidx.core:core-ktx:1.5.0'
     implementation 'androidx.appcompat:appcompat:1.2.0'
-    implementation 'com.bytedance:bytehook:1.0.7'
 }
