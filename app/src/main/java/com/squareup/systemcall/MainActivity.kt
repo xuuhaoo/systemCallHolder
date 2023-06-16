@@ -1,13 +1,14 @@
 package com.squareup.systemcall
 
-import android.Manifest
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import com.example.syscallholder.SysCallHolder
 import com.squareup.systemcall.databinding.ActivityMainBinding
+import dalvik.system.DexFile
 import java.io.File
+
 
 class MainActivity : AppCompatActivity() {
 

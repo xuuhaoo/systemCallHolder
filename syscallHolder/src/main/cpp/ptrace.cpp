@@ -1,4 +1,4 @@
-#include "native-lib.h"
+#include "ptrace.h"
 
 
 char *jstringToChar(JNIEnv *env, jstring jstr) {
